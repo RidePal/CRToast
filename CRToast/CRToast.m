@@ -144,6 +144,11 @@ typedef NS_ENUM(NSInteger, CRToastState) {
 @property (nonatomic, readonly) UIStatusBarStyle statusBarStyle;
 @property (nonatomic, readonly) UIColor *backgroundColor;
 @property (nonatomic, readonly) UIImage *image;
+@property (nonatomic, readonly) UIImage *rightImage;
+
+@property (nonatomic, readonly) CGColorRef backgroundLayerColor;
+@property (nonatomic, readonly) CGColorRef borderLayerColor;
+@property (nonatomic, readonly) CGFloat cornerRadius;
 
 @property (nonatomic, readonly) CGVector inGravityDirection;
 @property (nonatomic, readonly) CGVector outGravityDirection;
@@ -207,6 +212,10 @@ NSString *const kCRToastBackgroundColorKey                  = @"kCRToastBackgrou
 NSString *const kCRToastImageKey                            = @"kCRToastImageKey";
 NSString *const kCRToastRightImageKey                       = @"kCRToastRightImageKey";
 
+NSString *const kCRToastLayerBorderColorKey                 = @"kCRToastLayerBorderColorKey";
+NSString *const kCRToastLayerBackgroundColorKey             = @"kCRToastLayerBackgroundColorKey";
+NSString *const kCRToastLayerCornerRadiusKey                = @"kCRToastLayerCornerRadiusKey";
+
 NSString *const kCRToastInteractionRespondersKey            = @"kCRToastInteractionRespondersKey";
 
 #pragma mark - Option Defaults
@@ -248,6 +257,10 @@ static UIStatusBarStyle             kCRStatusBarStyleDefault                = UI
 static UIColor  *                   kCRBackgroundColorDefault               = nil;
 static UIImage  *                   kCRImageDefault                         = nil;
 static UIImage  *                   kCRRightImageDefault                    = nil;
+
+static UIColor  *                   kCRLayerBorderColorDefault              = nil;
+static UIColor  *                   kCRLayerBackgroundColorDefault          = nil;
+static CGFloat                      kCRLayerCornerRadiusDefault             = 0.0;
 
 static NSArray  *                   kCRInteractionResponders                = nil;
 
@@ -410,6 +423,9 @@ NSArray * CRToastGenericRecognizersMake(id target, CRToastInteractionResponder *
         kCRSubtitleTextColorDefault = [UIColor whiteColor];
         kCRSubtitleTextShadowOffsetDefault = CGSizeZero;
         kCRBackgroundColorDefault = [[UIApplication sharedApplication] delegate].window.tintColor ?: [UIColor redColor];
+        kCRLayerBackgroundColorDefault = [UIColor clearColor];
+        kCRLayerBorderColorDefault = [UIColor clearColor];
+        kCRLayerCornerRadiusDefault = 0.0;
         kCRInteractionResponders = @[];
         
         kCRToastKeyClassMap = @{kCRToastCustomViewKey                       : NSStringFromClass([UIView class]),
@@ -444,6 +460,9 @@ NSArray * CRToastGenericRecognizersMake(id target, CRToastInteractionResponder *
                                 kCRToastBackgroundColorKey                  : NSStringFromClass([UIColor class]),
                                 kCRToastImageKey                            : NSStringFromClass([UIImage class]),
                                 kCRToastRightImageKey                       : NSStringFromClass([UIImage class]),
+                                kCRToastLayerBorderColorKey                 : NSStringFromClass([UIColor class]),
+                                kCRToastLayerBackgroundColorKey             : NSStringFromClass([UIColor class]),
+                                kCRToastLayerCornerRadiusKey                : NSStringFromClass([@(kCRLayerCornerRadiusDefault) class]),
                                 kCRToastInteractionRespondersKey            : NSStringFromClass([NSArray class])};
     }
 }
@@ -500,6 +519,10 @@ NSArray * CRToastGenericRecognizersMake(id target, CRToastInteractionResponder *
     if (defaultOptions[kCRToastImageKey])                           kCRImageDefault                         = defaultOptions[kCRToastImageKey];
     if (defaultOptions[kCRToastRightImageKey])                      kCRRightImageDefault                    = defaultOptions[kCRToastRightImageKey];
     
+    if (defaultOptions[kCRToastLayerBackgroundColorKey])            kCRLayerBackgroundColorDefault          = defaultOptions[kCRToastLayerBackgroundColorKey];
+    if (defaultOptions[kCRToastLayerBorderColorKey])                kCRLayerBorderColorDefault              = defaultOptions[kCRToastLayerBorderColorKey];
+    if (defaultOptions[kCRToastLayerCornerRadiusKey])               kCRLayerCornerRadiusDefault             = [defaultOptions[kCRToastLayerCornerRadiusKey] floatValue];
+    
     if (defaultOptions[kCRToastInteractionRespondersKey])           kCRInteractionResponders                   = defaultOptions[kCRToastInteractionRespondersKey];
 }
 
@@ -519,10 +542,10 @@ NSArray * CRToastGenericRecognizersMake(id target, CRToastInteractionResponder *
                                              size.height - (yBorder * 2) - CRGetStatusBarHeight());
         notificationView.contentView = [[UIView alloc] initWithFrame:contentViewFrame];
         notificationView.contentView.backgroundColor = [UIColor clearColor];
-        notificationView.contentView.layer.backgroundColor = [UIColor whiteColor].CGColor;
-        notificationView.contentView.layer.cornerRadius = 4;
+        notificationView.contentView.layer.backgroundColor = self.backgroundLayerColor;
+        notificationView.contentView.layer.cornerRadius = self.cornerRadius;
         notificationView.contentView.layer.borderWidth = 1;
-        notificationView.contentView.layer.borderColor = [UIColor redColor].CGColor;
+        notificationView.contentView.layer.borderColor = self.borderLayerColor;
         notificationView.contentView.layer.shadowOpacity = 1;
         notificationView.contentView.layer.shadowRadius = 1;
         notificationView.contentView.layer.shadowOffset = CGSizeMake(0, 1);
@@ -531,16 +554,8 @@ NSArray * CRToastGenericRecognizersMake(id target, CRToastInteractionResponder *
         
         float innerXBorder = 10;
         float innerYBorder = 5;
-        notificationView.contentLabel = [[UILabel alloc] initWithFrame:CGRectMake(innerXBorder,
-                                                                                  innerYBorder,
-                                                                                  contentViewFrame.size.width - (innerXBorder * 2),
-                                                                                  contentViewFrame.size.height - (innerYBorder * 2))];
-        notificationView.contentLabel.text = self.text;
-        notificationView.contentLabel.numberOfLines = 2;
-        notificationView.contentLabel.font = [UIFont fontWithName:@"OpenSans" size:16.0f];
-        notificationView.contentLabel.backgroundColor = [UIColor clearColor];
-        [notificationView.contentView addSubview:notificationView.contentLabel];
-
+        float imageXOffset = 0;
+        
         UIImage *rightImage = self.rightImage;
         if (rightImage)
         {
@@ -552,7 +567,20 @@ NSArray * CRToastGenericRecognizersMake(id target, CRToastInteractionResponder *
                                          (contentViewFrame.size.height - imageFrame.size.height) / 2,
                                          imageFrame.size.width,
                                          imageFrame.size.height);
+            
+            imageXOffset = imageFrame.size.width + innerXBorder;
         }
+        
+        notificationView.contentLabel = [[UILabel alloc] initWithFrame:CGRectMake(innerXBorder,
+                                                                                  innerYBorder,
+                                                                                  contentViewFrame.size.width - (innerXBorder * 2) - imageXOffset,
+                                                                                  contentViewFrame.size.height - (innerYBorder * 2))];
+        notificationView.contentLabel.text = self.text;
+        notificationView.contentLabel.textColor = self.textColor;
+        notificationView.contentLabel.numberOfLines = 2;
+        notificationView.contentLabel.font = self.font;
+        notificationView.contentLabel.backgroundColor = [UIColor clearColor];
+        [notificationView.contentView addSubview:notificationView.contentLabel];
     }
     
     notificationView.toast = self;
@@ -756,6 +784,20 @@ NSArray * CRToastGenericRecognizersMake(id target, CRToastInteractionResponder *
 
 - (UIColor*)backgroundColor {
     return _options[kCRToastBackgroundColorKey] ?: kCRBackgroundColorDefault;
+}
+
+- (CGColorRef)backgroundLayerColor {
+    UIColor *color = _options[kCRToastLayerBackgroundColorKey];
+    return color ? color.CGColor : kCRLayerBackgroundColorDefault.CGColor;
+}
+
+- (CGColorRef)borderLayerColor {
+    UIColor *color = _options[kCRToastLayerBorderColorKey];
+    return color ? color.CGColor : kCRLayerBorderColorDefault.CGColor;
+}
+
+- (CGFloat)cornerRadius {
+    return _options[kCRToastLayerCornerRadiusKey] ? [_options[kCRToastLayerCornerRadiusKey] floatValue] : kCRLayerCornerRadiusDefault;
 }
 
 - (UIImage*)image {
@@ -1226,12 +1268,25 @@ CRToastAnimationStepBlock CRToastOutwardAnimationsSetupBlock(CRToastManager *wea
             } break;
             case CRToastAnimationTypeSpring: {
                 [UIView animateWithDuration:notification.animateOutTimeInterval
-                                      delay:0
-                     usingSpringWithDamping:notification.animationSpringDamping
-                      initialSpringVelocity:notification.animationSpringInitialVelocity
-                                    options:0
-                                 animations:CRToastOutwardAnimationsBlock(weakSelf)
-                                 completion:CRToastOutwardAnimationsCompletionBlock(weakSelf)];
+                                 animations:^{
+                                     CGRect frame = weakSelf.notificationView.frame;
+                                     frame.origin.x -= 20;
+                                     weakSelf.notificationView.frame = frame;
+                                 }
+                                 completion:^(BOOL finished) {
+//                                   [UIView animateWithDuration:notification.animateOutTimeInterval
+//                                                         delay:0
+//                                        usingSpringWithDamping:notification.animationSpringDamping
+//                                         initialSpringVelocity:notification.animationSpringInitialVelocity
+//                                                       options:0
+//                                                    animations:CRToastOutwardAnimationsBlock(weakSelf)
+//                                                    completion:CRToastOutwardAnimationsCompletionBlock(weakSelf)];
+                                     [UIView animateWithDuration:notification.animateOutTimeInterval
+                                                           delay:0
+                                                         options:0
+                                                      animations:CRToastOutwardAnimationsBlock(weakSelf)
+                                                      completion:CRToastOutwardAnimationsCompletionBlock(weakSelf)];
+                                 }];
             } break;
             case CRToastAnimationTypeGravity: {
                 if (weakSelf.notification.animator == nil) {
