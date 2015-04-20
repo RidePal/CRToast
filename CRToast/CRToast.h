@@ -71,7 +71,8 @@ extern NSString *NSStringFromCRToastInteractionType(CRToastInteractionType inter
 typedef NS_ENUM(NSInteger, CRToastType){
     CRToastTypeStatusBar,
     CRToastTypeNavigationBar,
-    CRToastTypeCustom
+    CRToastTypeCustom,
+  CRToastTypeFloating
 };
 
 /**
@@ -301,11 +302,17 @@ extern NSString *const kCRToastStatusBarStyleKey;
 
 extern NSString *const kCRToastBackgroundColorKey;
 
+extern NSString *const kCRToastLayerBorderColorKey;
+extern NSString *const kCRToastLayerBackgroundColorKey;
+extern NSString *const kCRToastLayerCornerRadiusKey;
+
 /**
  The image to be shown on the left side of the notification. Expects type `UIImage`.
  */
 
 extern NSString *const kCRToastImageKey;
+
+extern NSString *const kCRToastRightImageKey;
 
 /**
  An Array of Interaction Responders for the Notification. Expects type `NSArray` full of `CRToastInteractionResponders`
